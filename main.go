@@ -127,3 +127,109 @@ func enviarMensagem(token string, chatID int64, mensagem string) {
 
 	http.PostForm(apiURL, data)
 }
+
+/ ---------------- MAIN ---------------- //
+
+func main() {
+
+    // Carrega .env
+    err := godotenv.Load()
+
+    if err != nil {
+
+        fmt.Println("Erro ao carregar .env")
+
+        return
+    }
+
+    // Pega token
+    token := os.Getenv("TELEGRAMTOKEN")
+
+    if token == "" {
+
+        fmt.Println("Token não encontrado!")
+
+        return
+    }
+
+    fmt.Println("Bot conectado com sucesso!")
+
+    ultimoUpdateID := 0
+
+    for {
+
+    link := fmt.Sprintf(
+        "https://api.telegram.org/bot%s/getUpdates?offset=%d",
+        token,
+        ultimoUpdateID+1,
+    )
+
+    resp, err := http.Get(link)
+
+    if err != nil {
+
+        fmt.Println("Erro:", err)
+
+        time.Sleep(2 * time.Second)
+
+        continue
+    }
+
+    body,  := io.ReadAll(resp.Body)
+
+    resp.Body.Close()
+
+    var updates UpdateResponse
+
+    json.Unmarshal(body, &updates)
+
+    for _, update := range updates.Result {
+
+        ultimoUpdateID = update.UpdateID
+
+        texto := update.Message.Text
+
+        chatID := update.Message.Chat.ID
+
+        fmt.Println("Mensagem recebida:", texto)
+
+        var resposta string
+
+        if texto == "/start" {
+
+            resposta = 
+🤖 Olá! Eu sou o Jarvis.
+
+Eu consigo:
+✅ Validar CPF
+✅ Verificar se um CPF é válido ou inválido
+
+📌 Basta enviar um CPF no chat.
+
+Exemplo:
+52998224725
+
+        } else {
+
+            if validarCPF(texto) {
+
+                resposta = "✅ CPF válido"
+
+            } else {
+
+                resposta = "❌ CPF inválido"
+            }
+        }
+
+        enviarMensagem(
+            token,
+            chatID,
+            resposta,
+        )
+
+        fmt.Println("Resposta enviada!")
+    }
+
+    time.Sleep(2 * time.Second)
+   }
+}
