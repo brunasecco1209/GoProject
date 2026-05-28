@@ -104,3 +104,26 @@ func validarCPF(cpf string) bool {
 
 	return false
 }
+// ---------------- ENVIAR MENSAGEM ---------------- //
+
+func enviarMensagem(token string, chatID int64, mensagem string) {
+
+	apiURL := fmt.Sprintf(
+		"https://api.telegram.org/bot%s/sendMessage",
+		token,
+	)
+
+	data := url.Values{}
+
+	data.Set(
+		"chat_id",
+		fmt.Sprintf("%d", chatID),
+	)
+
+	data.Set(
+		"text",
+		mensagem,
+	)
+
+	http.PostForm(apiURL, data)
+}
