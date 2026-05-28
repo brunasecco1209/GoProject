@@ -31,10 +31,6 @@ type Update struct {
 	} `json:"message"`
 }
 
-
-	return false
-}
-
 // ---------------- FUNÇÃO CPF ---------------- //
 
 func validarCPF(cpf string) bool {
@@ -47,7 +43,6 @@ func validarCPF(cpf string) bool {
 	}
 
 	for _, c := range cpf {
-
 		if c < '0' || c > '9' {
 			return false
 		}
@@ -56,9 +51,7 @@ func validarCPF(cpf string) bool {
 	todosIguais := true
 
 	for i := 1; i < 11; i++ {
-
 		if cpf[i] != cpf[0] {
-
 			todosIguais = false
 			break
 		}
@@ -72,7 +65,6 @@ func validarCPF(cpf string) bool {
 	soma := 0
 
 	for i := 0; i < 9; i++ {
-
 		soma += int(cpf[i]-'0') * (10 - i)
 	}
 
@@ -86,7 +78,6 @@ func validarCPF(cpf string) bool {
 	soma = 0
 
 	for i := 0; i < 10; i++ {
-
 		soma += int(cpf[i]-'0') * (11 - i)
 	}
 
@@ -98,12 +89,12 @@ func validarCPF(cpf string) bool {
 
 	if digito1 == int(cpf[9]-'0') &&
 		digito2 == int(cpf[10]-'0') {
-
 		return true
 	}
 
 	return false
 }
+
 // ---------------- ENVIAR MENSAGEM ---------------- //
 
 func enviarMensagem(token string, chatID int64, mensagem string) {
@@ -128,77 +119,72 @@ func enviarMensagem(token string, chatID int64, mensagem string) {
 	http.PostForm(apiURL, data)
 }
 
-/ ---------------- MAIN ---------------- //
+// ---------------- MAIN ---------------- //
 
 func main() {
 
-    // Carrega .env
-    err := godotenv.Load()
+	err := godotenv.Load()
 
-    if err != nil {
+	if err != nil {
+		fmt.Println("Erro ao carregar .env")
+		return
+	}
 
-        fmt.Println("Erro ao carregar .env")
+	token := os.Getenv("TELEGRAM_TOKEN")
 
-        return
-    }
+	if token == "" {
+		fmt.Println("Token não encontrado!")
+		return
+	}
 
-    // Pega token
-    token := os.Getenv("TELEGRAMTOKEN")
+	fmt.Println("Bot conectado com sucesso!")
 
-    if token == "" {
+	ultimoUpdateID := 0
 
-        fmt.Println("Token não encontrado!")
+	for {
 
-        return
-    }
+		link := fmt.Sprintf(
+			"https://api.telegram.org/bot%s/getUpdates?offset=%d",
+			token,
+			ultimoUpdateID+1,
+		)
 
-    fmt.Println("Bot conectado com sucesso!")
+		resp, err := http.Get(link)
 
-    ultimoUpdateID := 0
+		if err != nil {
+			fmt.Println("Erro:", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
 
-    for {
+		body, err := io.ReadAll(resp.Body)
 
-    link := fmt.Sprintf(
-        "https://api.telegram.org/bot%s/getUpdates?offset=%d",
-        token,
-        ultimoUpdateID+1,
-    )
+		resp.Body.Close()
 
-    resp, err := http.Get(link)
+		if err != nil {
+			fmt.Println("Erro ao ler resposta:", err)
+			continue
+		}
 
-    if err != nil {
+		var updates UpdateResponse
 
-        fmt.Println("Erro:", err)
+		json.Unmarshal(body, &updates)
 
-        time.Sleep(2 * time.Second)
+		for _, update := range updates.Result {
 
-        continue
-    }
+			ultimoUpdateID = update.UpdateID
 
-    body,  := io.ReadAll(resp.Body)
+			texto := strings.TrimSpace(update.Message.Text)
 
-    resp.Body.Close()
+			chatID := update.Message.Chat.ID
 
-    var updates UpdateResponse
+			fmt.Println("Mensagem recebida:", texto)
 
-    json.Unmarshal(body, &updates)
+			var resposta string
 
-    for _, update := range updates.Result {
+			if texto == "/start" {
 
-        ultimoUpdateID = update.UpdateID
-
-        texto := update.Message.Text
-
-        chatID := update.Message.Chat.ID
-
-        fmt.Println("Mensagem recebida:", texto)
-
-        var resposta string
-
-        if texto == "/start" {
-
-            resposta = 
-🤖 Olá! Eu sou o Jarvis.
+				resposta = `🤖 Olá! Eu sou o Jarvis.
 
 Eu consigo:
 ✅ Validar CPF
@@ -207,29 +193,26 @@ Eu consigo:
 📌 Basta enviar um CPF no chat.
 
 Exemplo:
-52998224725
+52998224725`
 
-        } else {
+			} else {
 
-            if validarCPF(texto) {
+				if validarCPF(texto) {
+					resposta = "✅ CPF válido"
+				} else {
+					resposta = "❌ CPF inválido"
+				}
+			}
 
-                resposta = "✅ CPF válido"
+			enviarMensagem(
+				token,
+				chatID,
+				resposta,
+			)
 
-            } else {
+			fmt.Println("Resposta enviada!")
+		}
 
-                resposta = "❌ CPF inválido"
-            }
-        }
-
-        enviarMensagem(
-            token,
-            chatID,
-            resposta,
-        )
-
-        fmt.Println("Resposta enviada!")
-    }
-
-    time.Sleep(2 * time.Second)
-   }
+		time.Sleep(2 * time.Second)
+	}
 }
